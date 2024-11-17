@@ -199,4 +199,7 @@ Appendix D: Testing Procedures
     Integration Tests: Ensure that modules interact correctly.
     Manual Testing: Run the application and manually test new features and existing functionality.
 
+
+#IMPORTANT NOTE: USE AS MUCH CLOUD RESOURCES AS POSSIBLE BECAUSE MY LEPTOP IS NOT GOOD ENOUGH TO WORK WITH THEM ALL. (APPLY FOR AI MODELS ONLY) AI WORK TRY TO FIND modEL fROm HUGGiNG FACE OR SOMEWHERE ElSE THAT IS FREE AND BEST.
+
 End of Instruction Manual
