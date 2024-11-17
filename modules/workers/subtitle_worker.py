@@ -20,17 +20,31 @@ except ImportError:
 class SubtitleWorker(QThread):
     """Worker thread for generating and processing subtitles."""
     
-    def __init__(self, files: List[str], batch_size: int = 1):
+    def __init__(self, files: List[str], language: str = "en", output_format: str = "srt",
+                 word_timing: bool = False, speaker_diarization: bool = False,
+                 max_speakers: int = 2, batch_size: int = 1, delete_original: bool = False):
         """
         Initialize the subtitle worker.
         
         Args:
             files: List of video files to process
+            language: Target language for subtitles (default: "en")
+            output_format: Output subtitle format (default: "srt")
+            word_timing: Enable word-level timing (default: False)
+            speaker_diarization: Enable speaker diarization (default: False)
+            max_speakers: Maximum number of speakers for diarization (default: 2)
             batch_size: Number of files to process in parallel (default: 1)
+            delete_original: Whether to delete original files after processing (default: False)
         """
         super().__init__()
         self.files = files
+        self.language = language
+        self.output_format = output_format
+        self.word_timing = word_timing
+        self.speaker_diarization = speaker_diarization
+        self.max_speakers = max_speakers
         self.batch_size = batch_size
+        self.delete_original = delete_original
         self.signals = WorkerSignals()
         self.logger = setup_logger('SubtitleWorker')
 

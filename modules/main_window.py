@@ -7,19 +7,29 @@ import sys
 import traceback
 import subprocess
 from PyQt5.QtWidgets import (
-    QMainWindow, QPushButton, QTextEdit, QVBoxLayout, QWidget,
-    QFileDialog, QLabel, QMessageBox, QHBoxLayout, QProgressBar,
-    QInputDialog, QSpinBox, QCheckBox, QGroupBox, QStyle, QApplication
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
+    QLabel, QFileDialog, QMessageBox, QProgressBar, QTextEdit,
+    QCheckBox, QSpinBox, QGroupBox, QStyle, QApplication, QInputDialog, QDialog
 )
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from PyQt5.QtCore import Qt, QSize
 from PyQt5 import QtWidgets
-
+from modules.tools_window import ToolsWindow
 from .file_list_widget import FileListWidget
 from .workers.subtitle_worker import SubtitleWorker
 from .workers.srt_to_ass_worker import SrtToAssWorker
 from .utilities import setup_logger
-from .constants import WINDOW_TITLE, WINDOW_GEOMETRY, DARK_THEME, TEST_FILES_DIR
+from .constants import *
+from .sidebar_menu import SidebarMenu
+from .dialogs import (
+    SubtitleGenerationDialog,
+    FormatConversionDialog,
+    SubtitleEditDialog,
+    BatchProcessingDialog,
+    TemplateManagementDialog
+)
+
+import logging
 
 class MainWindow(QMainWindow):
     """
@@ -29,25 +39,19 @@ class MainWindow(QMainWindow):
     def __init__(self):
         """Initialize the main window."""
         super().__init__()
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.info("Initializing MainWindow")
         
         try:
-            # Setup logger first
-            self.logger = setup_logger('MainWindow')
-            self.logger.info("Initializing MainWindow")
-            
             # Initialize instance variables
             self.init_instance_variables()
             
             # Setup window properties
-            self.setWindowTitle(WINDOW_TITLE)
-            self.setGeometry(*WINDOW_GEOMETRY)
+            self.setWindowTitle("AutoLife Media Tools")
+            self.setMinimumSize(1000, 600)
             
             # Initialize UI
-            self.initUI()
-            
-            # Apply theme and connect signals
-            self.apply_dark_theme()
-            self.setup_connections()
+            self.init_ui()
             
             # Load test files if they exist
             self.load_test_files()
@@ -63,206 +67,413 @@ class MainWindow(QMainWindow):
     def init_instance_variables(self):
         """Initialize instance variables."""
         try:
-            self.button_convert_audio = QPushButton("Generate Subtitles")
-            self.button_srt_to_ass = QPushButton("Convert SRT to ASS")
-            self.button_mxf_to_mp4 = QPushButton("Convert MXF to MP4")
-            self.button_overlay_subtitles = QPushButton("Overlay Subtitles")
-            self.button_mp4_to_mxf = QPushButton("Convert MP4 to MXF")
-            self.progress_bar = QProgressBar()
-            self.status_display = QTextEdit()
-            self.batch_size_spinner = QSpinBox()
-            self.delete_original_checkbox = QCheckBox("Delete original files after conversion")
-            self.file_progress = {}
+            # Create file list widget
             self.file_list = FileListWidget()
-        except Exception as e:
-            raise Exception(f"Failed to initialize instance variables: {str(e)}")
-
-    def apply_dark_theme(self):
-        """Apply dark theme to the application."""
-        try:
-            app = QApplication.instance()
-            if app is None:
-                raise Exception("QApplication instance not found")
             
-            app.setStyle("Fusion")
+            # Create progress bar
+            self.progress_bar = QProgressBar()
+            self.progress_bar.setTextVisible(True)
+            self.progress_bar.setAlignment(Qt.AlignCenter)
             
-            # Create and configure palette
-            palette = QPalette()
+            # Create status display
+            self.status_display = QTextEdit()
+            self.status_display.setReadOnly(True)
+            self.status_display.setMaximumHeight(150)
+            self.status_display.setFont(QFont("Consolas", 10))
             
-            # Set colors for various UI elements
-            palette.setColor(QPalette.Window, QColor(DARK_THEME['background']))
-            palette.setColor(QPalette.WindowText, QColor(DARK_THEME['text']))
-            palette.setColor(QPalette.Base, QColor(DARK_THEME['list_background']))
-            palette.setColor(QPalette.AlternateBase, QColor(DARK_THEME['list_alternate']))
-            palette.setColor(QPalette.ToolTipBase, QColor(DARK_THEME['background']))
-            palette.setColor(QPalette.ToolTipText, QColor(DARK_THEME['text']))
-            palette.setColor(QPalette.Text, QColor(DARK_THEME['text']))
-            palette.setColor(QPalette.Button, QColor(DARK_THEME['button']))
-            palette.setColor(QPalette.ButtonText, QColor(DARK_THEME['button_text']))
-            palette.setColor(QPalette.BrightText, QColor(DARK_THEME['error']))
-            palette.setColor(QPalette.Link, QColor(DARK_THEME['highlight']))
-            palette.setColor(QPalette.Highlight, QColor(DARK_THEME['highlight']))
-            palette.setColor(QPalette.HighlightedText, QColor(DARK_THEME['highlight_text']))
+            # Create processing options
+            self.delete_original_checkbox = QCheckBox("Delete Original Files")
+            self.batch_size_spinbox = QSpinBox()
+            self.batch_size_spinbox.setRange(1, 10)
+            self.batch_size_spinbox.setValue(3)
             
-            app.setPalette(palette)
+            # Create sidebar menu
+            self.sidebar = SidebarMenu()
             
-            # Style specific widgets
-            self.setStyleSheet(f"""
-                QMainWindow {{
-                    background-color: {DARK_THEME['background']};
-                }}
-                QPushButton {{
-                    background-color: {DARK_THEME['button']};
-                    color: {DARK_THEME['button_text']};
-                    border: 1px solid {DARK_THEME['border']};
-                    padding: 5px;
-                    border-radius: 3px;
-                    min-width: 80px;
-                }}
-                QPushButton:hover {{
-                    background-color: {DARK_THEME['button_hover']};
-                }}
-                QPushButton:pressed {{
-                    background-color: {DARK_THEME['highlight']};
-                }}
-                QProgressBar {{
-                    border: 1px solid {DARK_THEME['border']};
-                    border-radius: 3px;
-                    text-align: center;
-                    color: {DARK_THEME['highlight_text']};
-                }}
-                QProgressBar::chunk {{
-                    background-color: {DARK_THEME['progress_bar']};
-                }}
-                QGroupBox {{
-                    background-color: {DARK_THEME['group_box']};
-                    border: 1px solid {DARK_THEME['border']};
-                    border-radius: 3px;
-                    margin-top: 0.5em;
-                    padding-top: 0.5em;
-                    color: {DARK_THEME['group_box_title']};
-                }}
-                QGroupBox::title {{
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 3px 0 3px;
-                }}
-                QTextEdit {{
-                    background-color: {DARK_THEME['status_background']};
-                    color: {DARK_THEME['status_text']};
-                    border: 1px solid {DARK_THEME['border']};
-                    border-radius: 3px;
-                }}
-                QSpinBox {{
-                    background-color: {DARK_THEME['list_background']};
-                    color: {DARK_THEME['text']};
-                    border: 1px solid {DARK_THEME['border']};
-                    border-radius: 3px;
-                    padding: 2px;
-                }}
-                QCheckBox {{
-                    color: {DARK_THEME['text']};
-                }}
-                QCheckBox::indicator {{
-                    width: 13px;
-                    height: 13px;
-                }}
-                QCheckBox::indicator:unchecked {{
-                    border: 1px solid {DARK_THEME['border']};
-                    background-color: {DARK_THEME['button']};
-                }}
-                QCheckBox::indicator:checked {{
-                    border: 1px solid {DARK_THEME['highlight']};
-                    background-color: {DARK_THEME['highlight']};
-                }}
-                QLabel {{
-                    color: {DARK_THEME['text']};
-                }}
-            """)
+            # Initialize file progress tracking
+            self.file_progress = {}
             
         except Exception as e:
-            raise Exception(f"Failed to apply dark theme: {str(e)}")
-
-    def setup_connections(self):
-        """Setup signal connections for buttons and workers."""
-        try:
-            # Connect buttons to their respective functions
-            self.button_convert_audio.clicked.connect(self.generate_subtitles)
-            self.button_srt_to_ass.clicked.connect(self.convert_srt_to_ass)
-            self.button_mxf_to_mp4.clicked.connect(self.convert_mxf_to_mp4)
-            self.button_mp4_to_mxf.clicked.connect(self.convert_mp4_to_mxf)
-            self.button_overlay_subtitles.clicked.connect(self.overlay_subtitles)
-            
-            self.logger.info("Button connections setup completed")
-        except Exception as e:
-            self.logger.error(f"Failed to setup connections: {str(e)}", exc_info=True)
+            self.logger.error(f"Failed to initialize instance variables: {str(e)}")
             raise
 
-    def initUI(self):
+    def init_ui(self):
         """Initialize the user interface."""
-        # Create central widget and layout
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
+        try:
+            # Create central widget
+            central_widget = QWidget()
+            self.setCentralWidget(central_widget)
+            
+            # Create main layout
+            main_layout = QHBoxLayout()
+            central_widget.setLayout(main_layout)
+            
+            # Add sidebar menu
+            main_layout.addWidget(self.sidebar)
+            
+            # Create right panel
+            right_panel = QWidget()
+            right_layout = QVBoxLayout()
+            right_panel.setLayout(right_layout)
+            
+            # Add file list
+            right_layout.addWidget(self.file_list)
+            
+            # Create button layout
+            button_layout = QHBoxLayout()
+            
+            # Create and add buttons
+            add_button = QPushButton("Add Files")
+            add_button.clicked.connect(self.add_files)
+            button_layout.addWidget(add_button)
+            
+            remove_button = QPushButton("Remove Selected")
+            remove_button.clicked.connect(self.remove_selected_files)
+            button_layout.addWidget(remove_button)
+            
+            # Add button layout to right panel
+            right_layout.addLayout(button_layout)
+            
+            # Create processing options group
+            options_group = QGroupBox("Processing Options")
+            options_layout = QHBoxLayout()
+            options_group.setLayout(options_layout)
+            
+            # Add processing options
+            options_layout.addWidget(QLabel("Batch Size:"))
+            options_layout.addWidget(self.batch_size_spinbox)
+            options_layout.addWidget(self.delete_original_checkbox)
+            options_layout.addStretch()
+            
+            # Add options group to right panel
+            right_layout.addWidget(options_group)
+            
+            # Add progress bar and status display
+            right_layout.addWidget(self.progress_bar)
+            right_layout.addWidget(self.status_display)
+            
+            # Add right panel to main layout
+            main_layout.addWidget(right_panel)
+            
+            # Connect sidebar signals
+            self.sidebar.tool_selected.connect(self.handle_tool_selection)
+            
+            self.logger.info("UI initialization completed")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to initialize UI: {str(e)}")
+            raise
 
-        # Create file management section
-        file_management = QGroupBox("File Management")
-        file_layout = QVBoxLayout()
-        
-        # Add file list
-        file_layout.addWidget(self.file_list)
-        
-        # Add file management buttons
-        button_layout = QHBoxLayout()
-        add_button = QPushButton("Add Files")
-        remove_button = QPushButton("Remove Selected")
-        button_layout.addWidget(add_button)
-        button_layout.addWidget(remove_button)
-        file_layout.addLayout(button_layout)
-        
-        file_management.setLayout(file_layout)
-        layout.addWidget(file_management)
+    def handle_tool_selection(self, tool_name):
+        """Handle tool selection from the sidebar menu."""
+        try:
+            self.logger.info(f"Tool selected: {tool_name}")
+            
+            # Get selected files
+            files = self.file_list.get_selected_files()
+            
+            # Map tool names to functions
+            tool_map = {
+                "Generate Subtitles": self.generate_subtitles,
+                "Edit Subtitles": self.edit_subtitles,
+                "Convert Video": self.convert_video,
+                "Convert Audio": self.convert_audio,
+                "Convert Subtitles": self.convert_subtitle,
+                "Batch Process": self.batch_process,
+                "Manage Templates": self.manage_templates,
+                "Extract Audio": self.extract_audio,
+                "Merge Subtitles": self.merge_subtitles,
+                "Split Subtitles": self.split_subtitles,
+                "Sync Subtitles": self.sync_subtitles,
+                "Convert SRT to ASS": self.convert_srt_to_ass,
+                "Convert MXF to MP4": self.convert_mxf_to_mp4,
+                "Convert MP4 to MXF": self.convert_mp4_to_mxf,
+                "Overlay Subtitles": self.overlay_subtitles
+            }
+            
+            # Execute the selected tool
+            if tool_name in tool_map:
+                tool_map[tool_name]()
+            else:
+                self.logger.warning(f"Unknown tool selected: {tool_name}")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to handle tool selection: {str(e)}")
+            self.handle_error(str(e))
 
-        # Create processing options section
-        processing = QGroupBox("Processing Options")
-        processing_layout = QVBoxLayout()
-        
-        # Add batch size control
-        batch_layout = QHBoxLayout()
-        batch_layout.addWidget(QLabel("Batch Size:"))
-        self.batch_size_spinner.setRange(1, 10)
-        self.batch_size_spinner.setValue(3)
-        batch_layout.addWidget(self.batch_size_spinner)
-        processing_layout.addLayout(batch_layout)
-        
-        # Add processing buttons
-        processing_layout.addWidget(self.button_convert_audio)
-        processing_layout.addWidget(self.button_srt_to_ass)
-        processing_layout.addWidget(self.button_mxf_to_mp4)
-        processing_layout.addWidget(self.button_overlay_subtitles)
-        processing_layout.addWidget(self.button_mp4_to_mxf)
-        
-        # Add delete original checkbox
-        processing_layout.addWidget(self.delete_original_checkbox)
-        
-        processing.setLayout(processing_layout)
-        layout.addWidget(processing)
+    def extract_audio(self):
+        """Extract audio from video files."""
+        try:
+            files = self.file_list.get_selected_files()
+            if not files:
+                QMessageBox.warning(self, "No Files Selected", 
+                                  "Please select video files to extract audio from.")
+                return
 
-        # Add progress section
-        progress = QGroupBox("Progress")
-        progress_layout = QVBoxLayout()
-        progress_layout.addWidget(self.progress_bar)
-        progress_layout.addWidget(self.status_display)
-        progress.setLayout(progress_layout)
-        layout.addWidget(progress)
+            self.logger.info(f"Starting audio extraction for {len(files)} files")
+            self.status_display.append(f"Starting audio extraction...")
+            
+            # Create worker for audio extraction (to be implemented)
+            self.extract_audio_worker = AudioExtractionWorker(
+                files,
+                self.batch_size_spinbox.value(),
+                delete_original=self.delete_original_checkbox.isChecked()
+            )
+            
+            # Connect signals
+            self.extract_audio_worker.signals.progress.connect(self.update_progress)
+            self.extract_audio_worker.signals.file_completed.connect(self.update_file_progress)
+            self.extract_audio_worker.signals.error.connect(self.handle_error)
+            self.extract_audio_worker.signals.finished.connect(self.process_completed)
+            
+            # Start worker
+            self.extract_audio_worker.start()
+            
+            # Disable buttons while processing
+            self.set_buttons_enabled(False)
+            
+        except Exception as e:
+            self.logger.error(f"Failed to start audio extraction: {str(e)}", exc_info=True)
+            self.handle_error(str(e))
 
-        # Connect signals
-        add_button.clicked.connect(self.add_files)
-        remove_button.clicked.connect(self.remove_selected_files)
+    def edit_subtitles(self):
+        """Open subtitle editor."""
+        try:
+            files = self.file_list.get_selected_files()
+            if not files:
+                QMessageBox.warning(self, "No Files Selected", 
+                                  "Please select subtitle files to edit.")
+                return
 
-        # Configure status display
-        self.status_display.setReadOnly(True)
-        self.status_display.setFont(QFont("Consolas", 10))
+            dialog = SubtitleEditDialog(self)
+            if dialog.exec_() == QDialog.Accepted:
+                values = dialog.get_values()
+                self.logger.info(f"Saving subtitle edits with settings: {values}")
+                
+                # Create worker for subtitle editing
+                self.subtitle_edit_worker = SubtitleEditWorker(
+                    files[0],
+                    values['timing'],
+                    values['style'],
+                    delete_original=self.delete_original_checkbox.isChecked()
+                )
+                
+                # Connect signals
+                self.subtitle_edit_worker.signals.progress.connect(self.update_progress)
+                self.subtitle_edit_worker.signals.error.connect(self.handle_error)
+                self.subtitle_edit_worker.signals.finished.connect(self.process_completed)
+                
+                # Start worker
+                self.subtitle_edit_worker.start()
+                
+                # Disable buttons while processing
+                self.set_buttons_enabled(False)
+                
+        except Exception as e:
+            self.logger.error(f"Failed to edit subtitles: {str(e)}", exc_info=True)
+            self.handle_error(str(e))
+
+    def merge_subtitles(self):
+        """Merge multiple subtitle files."""
+        try:
+            files = self.file_list.get_selected_files()
+            if len(files) < 2:
+                QMessageBox.warning(self, "Not Enough Files", 
+                                  "Please select at least two subtitle files to merge.")
+                return
+
+            # Show merge options dialog (to be implemented)
+            self.merge_dialog = SubtitleMergeDialog(files, self)
+            if self.merge_dialog.exec_() == QDialog.Accepted:
+                self.status_display.append("Starting subtitle merge...")
+                # Implement merge logic
+                
+        except Exception as e:
+            self.logger.error(f"Failed to merge subtitles: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "Error", f"Failed to merge subtitles: {str(e)}")
+
+    def split_subtitles(self):
+        """Split subtitle file into multiple parts."""
+        try:
+            files = self.file_list.get_selected_files()
+            if not files:
+                QMessageBox.warning(self, "No Files Selected", 
+                                  "Please select a subtitle file to split.")
+                return
+
+            # Show split options dialog (to be implemented)
+            self.split_dialog = SubtitleSplitDialog(files[0], self)
+            if self.split_dialog.exec_() == QDialog.Accepted:
+                self.status_display.append("Starting subtitle split...")
+                # Implement split logic
+                
+        except Exception as e:
+            self.logger.error(f"Failed to split subtitles: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "Error", f"Failed to split subtitles: {str(e)}")
+
+    def sync_subtitles(self):
+        """Synchronize subtitles with video."""
+        try:
+            files = self.file_list.get_selected_files()
+            if not files:
+                QMessageBox.warning(self, "No Files Selected", 
+                                  "Please select files to sync.")
+                return
+
+            # Show sync options dialog (to be implemented)
+            self.sync_dialog = SubtitleSyncDialog(files, self)
+            if self.sync_dialog.exec_() == QDialog.Accepted:
+                self.status_display.append("Starting subtitle sync...")
+                # Implement sync logic
+                
+        except Exception as e:
+            self.logger.error(f"Failed to sync subtitles: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "Error", f"Failed to sync subtitles: {str(e)}")
+
+    def convert_video(self):
+        """Convert video files to different formats."""
+        try:
+            files = self.file_list.get_selected_files()
+            if not files:
+                QMessageBox.warning(self, "No Files Selected", 
+                                  "Please select video files to convert.")
+                return
+
+            dialog = FormatConversionDialog(self)
+            if dialog.exec_() == QDialog.Accepted:
+                values = dialog.get_values()
+                self.logger.info(f"Starting video conversion with settings: {values}")
+                
+                # Create worker for video conversion
+                self.video_worker = VideoConversionWorker(
+                    files,
+                    values['output_format'],
+                    video_settings=values['video'],
+                    audio_settings=values['audio'],
+                    preserve_metadata=values['preserve_metadata'],
+                    hardware_acceleration=values['hardware_acceleration'],
+                    batch_size=self.batch_size_spinbox.value(),
+                    delete_original=self.delete_original_checkbox.isChecked()
+                )
+                
+                # Connect signals
+                self.video_worker.signals.progress.connect(self.update_progress)
+                self.video_worker.signals.file_completed.connect(self.update_file_progress)
+                self.video_worker.signals.error.connect(self.handle_error)
+                self.video_worker.signals.finished.connect(self.process_completed)
+                
+                # Start worker
+                self.video_worker.start()
+                
+                # Disable buttons while processing
+                self.set_buttons_enabled(False)
+                
+        except Exception as e:
+            self.logger.error(f"Failed to start video conversion: {str(e)}", exc_info=True)
+            self.handle_error(str(e))
+
+    def convert_audio(self):
+        """Convert audio files to different formats."""
+        try:
+            files = self.file_list.get_selected_files()
+            if not files:
+                QMessageBox.warning(self, "No Files Selected", 
+                                  "Please select audio files to convert.")
+                return
+
+            # Show format selection dialog (to be implemented)
+            self.audio_convert_dialog = AudioConvertDialog(files, self)
+            if self.audio_convert_dialog.exec_() == QDialog.Accepted:
+                self.status_display.append("Starting audio conversion...")
+                # Implement conversion logic
+                
+        except Exception as e:
+            self.logger.error(f"Failed to convert audio: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "Error", f"Failed to convert audio: {str(e)}")
+
+    def convert_subtitle(self):
+        """Convert subtitle files to different formats."""
+        try:
+            files = self.file_list.get_selected_files()
+            if not files:
+                QMessageBox.warning(self, "No Files Selected", 
+                                  "Please select subtitle files to convert.")
+                return
+
+            # Show format selection dialog (to be implemented)
+            self.subtitle_convert_dialog = SubtitleConvertDialog(files, self)
+            if self.subtitle_convert_dialog.exec_() == QDialog.Accepted:
+                self.status_display.append("Starting subtitle conversion...")
+                # Implement conversion logic
+                
+        except Exception as e:
+            self.logger.error(f"Failed to convert subtitles: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "Error", f"Failed to convert subtitles: {str(e)}")
+
+    def show_mxf_mpf_dialog(self):
+        """Show MXF MPF conversion dialog."""
+        try:
+            files = self.file_list.get_selected_files()
+            if not files:
+                QMessageBox.warning(self, "No Files Selected", 
+                                  "Please select files to convert.")
+                return
+
+            # Show conversion dialog (to be implemented)
+            self.mxf_mpf_dialog = MXFMPFDialog(files, self)
+            if self.mxf_mpf_dialog.exec_() == QDialog.Accepted:
+                self.status_display.append("Starting MXF/MPF conversion...")
+                # Implement conversion logic
+                
+        except Exception as e:
+            self.logger.error(f"Failed to show MXF/MPF dialog: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "Error", f"Failed to show MXF/MPF dialog: {str(e)}")
+
+    def batch_process(self):
+        """Show batch processing dialog."""
+        try:
+            dialog = BatchProcessingDialog(self)
+            if dialog.exec_() == QDialog.Accepted:
+                values = dialog.get_values()
+                self.logger.info(f"Starting batch processing with settings: {values}")
+                
+                # Create worker for batch processing
+                self.batch_worker = BatchProcessingWorker(
+                    values['files'],
+                    values['operation'],
+                    values['output_directory'],
+                    parallel_processing=values['parallel_processing'],
+                    error_handling=values['error_handling'],
+                    delete_original=self.delete_original_checkbox.isChecked()
+                )
+                
+                # Connect signals
+                self.batch_worker.signals.progress.connect(self.update_progress)
+                self.batch_worker.signals.file_completed.connect(self.update_file_progress)
+                self.batch_worker.signals.error.connect(self.handle_error)
+                self.batch_worker.signals.finished.connect(self.process_completed)
+                
+                # Start worker
+                self.batch_worker.start()
+                
+                # Disable buttons while processing
+                self.set_buttons_enabled(False)
+                
+        except Exception as e:
+            self.logger.error(f"Failed to start batch processing: {str(e)}", exc_info=True)
+            self.handle_error(str(e))
+
+    def manage_templates(self):
+        """Show template management dialog."""
+        try:
+            dialog = TemplateManagementDialog(self)
+            if dialog.exec_() == QDialog.Accepted:
+                values = dialog.get_values()
+                self.logger.info(f"Template saved: {values['name']}")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to manage templates: {str(e)}", exc_info=True)
+            self.handle_error(str(e))
 
     def generate_subtitles(self):
         """Generate subtitles for selected files."""
@@ -270,31 +481,38 @@ class MainWindow(QMainWindow):
             files = self.file_list.get_selected_files()
             if not files:
                 QMessageBox.warning(self, "No Files Selected", 
-                                  "Please select files to process.")
+                                  "Please select video or audio files to generate subtitles for.")
                 return
 
-            self.logger.info(f"Starting subtitle generation for {len(files)} files")
-            self.status_display.append(f"Starting subtitle generation for {len(files)} files...")
-            
-            # Create and setup worker
-            self.subtitle_worker = SubtitleWorker(
-                files, 
-                self.batch_size_spinner.value()
-            )
-            
-            # Connect worker signals
-            self.subtitle_worker.signals.progress.connect(self.update_progress)
-            self.subtitle_worker.signals.file_completed.connect(self.update_file_progress)
-            self.subtitle_worker.signals.error.connect(self.handle_error)
-            self.subtitle_worker.signals.log.connect(self.log_message)
-            self.subtitle_worker.signals.finished.connect(self.process_completed)
-            
-            # Start worker
-            self.subtitle_worker.start()
-            
-            # Disable buttons while processing
-            self.set_buttons_enabled(False)
-            
+            dialog = SubtitleGenerationDialog(self)
+            if dialog.exec_() == QDialog.Accepted:
+                values = dialog.get_values()
+                self.logger.info(f"Starting subtitle generation with settings: {values}")
+                
+                # Create worker for subtitle generation
+                self.subtitle_worker = SubtitleWorker(
+                    files,
+                    values['language'],
+                    values['output_format'],
+                    word_timing=values['word_timing'],
+                    speaker_diarization=values['speaker_diarization'],
+                    max_speakers=values['max_speakers'],
+                    batch_size=self.batch_size_spinbox.value(),
+                    delete_original=self.delete_original_checkbox.isChecked()
+                )
+                
+                # Connect signals
+                self.subtitle_worker.signals.progress.connect(self.update_progress)
+                self.subtitle_worker.signals.file_completed.connect(self.update_file_progress)
+                self.subtitle_worker.signals.error.connect(self.handle_error)
+                self.subtitle_worker.signals.finished.connect(self.process_completed)
+                
+                # Start worker
+                self.subtitle_worker.start()
+                
+                # Disable buttons while processing
+                self.set_buttons_enabled(False)
+                
         except Exception as e:
             self.logger.error(f"Failed to start subtitle generation: {str(e)}", exc_info=True)
             self.handle_error(str(e))
@@ -308,14 +526,19 @@ class MainWindow(QMainWindow):
                                   "Please select files to process.")
                 return
 
-            # Get ASS template file
-            template_file, _ = QFileDialog.getOpenFileName(
-                self, "Select ASS Template", "", "ASS Files (*.ass)"
+            # Use default template
+            template_file = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                'templates',
+                'default.ass'
             )
-            if not template_file:
+            
+            if not os.path.exists(template_file):
+                QMessageBox.critical(self, "Template Missing", 
+                                  f"Default template not found: {template_file}")
                 return
 
-            # Read available styles and let user choose
+            # Read available styles
             styles = self.read_ass_styles(template_file)
             if not styles:
                 QMessageBox.warning(self, "No Styles", "No styles found in template file.")
@@ -367,7 +590,7 @@ class MainWindow(QMainWindow):
             # Create and setup worker
             self.mxf_to_mp4_worker = SubtitleWorker(
                 files, 
-                self.batch_size_spinner.value()
+                self.batch_size_spinbox.value()
             )
             
             # Connect worker signals
@@ -402,7 +625,7 @@ class MainWindow(QMainWindow):
             # Create and setup worker
             self.mp4_to_mxf_worker = SubtitleWorker(
                 files, 
-                self.batch_size_spinner.value()
+                self.batch_size_spinbox.value()
             )
             
             # Connect worker signals
@@ -437,7 +660,7 @@ class MainWindow(QMainWindow):
             # Create and setup worker
             self.overlay_worker = SubtitleWorker(
                 files, 
-                self.batch_size_spinner.value()
+                self.batch_size_spinbox.value()
             )
             
             # Connect worker signals
@@ -548,7 +771,7 @@ class MainWindow(QMainWindow):
         """Open file dialog to add files."""
         try:
             # Default to test_files directory if it exists
-            default_dir = TEST_FILES_DIR if os.path.exists(TEST_FILES_DIR) else os.path.expanduser("~")
+            default_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_files') if os.path.exists(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_files')) else os.path.expanduser("~")
 
             files, _ = QFileDialog.getOpenFileNames(
                 self,
@@ -556,8 +779,11 @@ class MainWindow(QMainWindow):
                 default_dir,
                 "All Supported Files (*.mp4 *.mxf *.srt *.ass);;Video Files (*.mp4 *.mxf);;Subtitle Files (*.srt *.ass);;All Files (*.*)"
             )
-            for file in files:
-                self.file_list.addItem(file)
+            
+            # Use the file_list's add_files method
+            if files:
+                self.file_list.add_files(files)
+                self.logger.info(f"Added {len(files)} files to list")
 
         except Exception as e:
             error_msg = f"Error opening files: {str(e)}"
@@ -566,8 +792,12 @@ class MainWindow(QMainWindow):
 
     def remove_selected_files(self):
         """Remove selected files from the list."""
-        for item in self.file_list.selectedItems():
-            self.file_list.takeItem(self.file_list.row(item))
+        try:
+            self.file_list.remove_selected()
+        except Exception as e:
+            error_msg = f"Error removing files: {str(e)}"
+            self.logger.error(error_msg)
+            QMessageBox.critical(self, "Error", error_msg)
 
     def log_message(self, message):
         """Add a message to the status display."""
@@ -576,11 +806,8 @@ class MainWindow(QMainWindow):
 
     def set_buttons_enabled(self, enabled):
         """Enable or disable buttons."""
-        self.button_convert_audio.setEnabled(enabled)
-        self.button_srt_to_ass.setEnabled(enabled)
-        self.button_mxf_to_mp4.setEnabled(enabled)
-        self.button_mp4_to_mxf.setEnabled(enabled)
-        self.button_overlay_subtitles.setEnabled(enabled)
+        self.sidebar.setEnabled(enabled)
+        self.file_list.setEnabled(enabled)
 
     def get_style_choice(self, styles):
         """Prompt the user to select a style."""
@@ -629,21 +856,24 @@ class MainWindow(QMainWindow):
     def load_test_files(self):
         """Load files from test directory if they exist."""
         try:
-            if os.path.exists(TEST_FILES_DIR):
+            test_files_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_files')
+            if os.path.exists(test_files_dir):
                 test_files = []
-                for file in os.listdir(TEST_FILES_DIR):
-                    file_path = os.path.join(TEST_FILES_DIR, file)
+                for file in os.listdir(test_files_dir):
+                    file_path = os.path.join(test_files_dir, file)
                     if os.path.isfile(file_path):
                         ext = os.path.splitext(file)[1].lower()
-                        if ext in self.file_list.VIDEO_FORMATS or ext in self.file_list.AUDIO_FORMATS:
+                        if ext in self.file_list.VIDEO_FORMATS or ext in self.file_list.AUDIO_FORMATS or ext in self.file_list.SUBTITLE_FORMATS:
                             test_files.append(file_path)
                 
                 if test_files:
                     self.file_list.add_files(test_files)
-                    self.log_message(f"Loaded {len(test_files)} test file(s)")
-                    self.logger.info(f"Loaded {len(test_files)} test files from {TEST_FILES_DIR}")
+                    self.logger.info(f"Loaded {len(test_files)} test files from {test_files_dir}")
+                else:
+                    self.logger.info(f"No compatible test files found in {test_files_dir}")
+                
         except Exception as e:
-            self.logger.error(f"Error loading test files: {str(e)}")
+            self.logger.error(f"Error loading test files: {str(e)}", exc_info=True)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

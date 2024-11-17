@@ -5,6 +5,20 @@ Constants used throughout the media processing application.
 import os
 from dotenv import load_dotenv
 
+# Version Information
+VERSION = "1.1.0"
+VERSION_NAME = "Stable Release"
+VERSION_DATE = "2024-01-08"
+VERSION_DESCRIPTION = """
+Major improvements in this version:
+- Fixed file list widget implementation
+- Added proper support for test files loading
+- Improved file format handling and validation
+- Enhanced error handling and logging
+- Fixed duplicate file selection issue
+- Added comprehensive file format support
+"""
+
 # Load environment variables
 load_dotenv()
 
@@ -347,3 +361,47 @@ SUBTITLE_EXTENSIONS = {'.srt', '.vtt', '.sub', '.ass'}
 
 # Progress Updates
 PROGRESS_UPDATE_INTERVAL = 100  # Milliseconds between progress updates
+
+# Tool Categories
+TOOL_CATEGORIES = {
+    "FREQUENTLY_USED": "📌 Frequently Used",
+    "SUBTITLE_TOOLS": "🗣️ Subtitle Tools",
+    "CONVERSION_TOOLS": "🔄 Format Conversion",
+    "ADDITIONAL_TOOLS": "🛠️ Additional Tools"
+}
+
+# Tool Names
+TOOL_NAMES = {
+    "GENERATE_SUBTITLES": "Generate Subtitles",
+    "CONVERT_SRT_ASS": "Convert SRT to ASS",
+    "EXTRACT_AUDIO": "Extract Audio",
+    "EDIT_SUBTITLES": "Edit Subtitles",
+    "MERGE_SUBTITLES": "Merge Subtitles",
+    "SPLIT_SUBTITLES": "Split Subtitles",
+    "SYNC_SUBTITLES": "Sync Subtitles",
+    "VIDEO_CONVERTER": "Video Format Converter",
+    "AUDIO_CONVERTER": "Audio Format Converter",
+    "SUBTITLE_CONVERTER": "Subtitle Format Converter",
+    "MXF_TO_MPF": "MXF to MPF Converter",
+    "MPF_TO_MXF": "MPF to MXF Converter",
+    "BATCH_PROCESSING": "Batch Processing",
+    "CUSTOM_TEMPLATES": "Custom Templates"
+}
+
+# Tool Descriptions
+TOOL_DESCRIPTIONS = {
+    "GENERATE_SUBTITLES": "Generate subtitles from video/audio files",
+    "CONVERT_SRT_ASS": "Convert SRT subtitle files to ASS format",
+    "EXTRACT_AUDIO": "Extract audio from video files",
+    "EDIT_SUBTITLES": "Edit and modify subtitle files",
+    "MERGE_SUBTITLES": "Merge multiple subtitle files",
+    "SPLIT_SUBTITLES": "Split subtitle files",
+    "SYNC_SUBTITLES": "Synchronize subtitles with video",
+    "VIDEO_CONVERTER": "Convert between video formats",
+    "AUDIO_CONVERTER": "Convert between audio formats",
+    "SUBTITLE_CONVERTER": "Convert between subtitle formats",
+    "MXF_TO_MPF": "Convert MXF files to MPF format",
+    "MPF_TO_MXF": "Convert MPF files to MXF format",
+    "BATCH_PROCESSING": "Process multiple files in batch",
+    "CUSTOM_TEMPLATES": "Manage custom templates"
+}
