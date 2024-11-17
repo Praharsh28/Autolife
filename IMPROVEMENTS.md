@@ -99,6 +99,76 @@
 - [x] Add type hints
 - [x] Fix inconsistent naming conventions
 
+## 15. Test Improvements
+
+### Critical Issues
+
+#### UI Tests
+1. **Language Panel Tests**
+   - [ ] Fix QApplication initialization in headless environments
+   - [ ] Add error handling for invalid language selections
+   - [ ] Implement tests for concurrent language changes
+
+#### Media Processing
+1. **Batch Manager Tests**
+   - [ ] Add timeout handling for long-running tasks
+   - [ ] Implement proper cleanup of temporary files
+   - [ ] Add tests for parallel processing limits
+
+#### File Management
+1. **File List Tests**
+   - [ ] Add validation for unsupported file formats
+   - [ ] Implement tests for large file handling
+   - [ ] Add tests for file status updates during processing
+
+### Performance Issues
+
+1. **Worker Thread Tests**
+   - [ ] Optimize thread pool management
+   - [ ] Add stress tests for multiple concurrent tasks
+   - [ ] Implement proper thread cleanup
+
+2. **Media Processing Performance**
+   - [ ] Optimize memory usage during batch processing
+   - [ ] Add performance benchmarks for different file sizes
+   - [ ] Implement progress tracking for large files
+
+### Integration Issues
+
+1. **Cross-Platform Compatibility**
+   - [ ] Fix path handling issues on Windows
+   - [ ] Resolve ffmpeg compatibility issues
+   - [ ] Add tests for different OS environments
+
+2. **API Integration**
+   - [ ] Add retry logic for API failures
+   - [ ] Implement proper error handling for API limits
+   - [ ] Add tests for API authentication
+
+### Code Quality Improvements
+
+1. **Test Coverage**
+   - [ ] Increase coverage for error handling paths
+   - [ ] Add more edge case scenarios
+   - [ ] Implement property-based testing
+
+2. **Documentation**
+   - [ ] Add docstrings to all test functions
+   - [ ] Document test setup requirements
+   - [ ] Add examples for common test scenarios
+
+### Security Issues
+
+1. **File Access**
+   - [ ] Add tests for file permissions
+   - [ ] Implement secure file handling
+   - [ ] Add validation for file paths
+
+2. **API Security**
+   - [ ] Add tests for token validation
+   - [ ] Implement secure storage of credentials
+   - [ ] Add tests for API access controls
+
 ## Priority Order
 1. Error Handling and Recovery (Critical for stability)
 2. Performance Issues (Important for usability)
@@ -114,6 +184,7 @@
 12. Feature Gaps (Feature enhancement)
 13. Maintenance (Long-term sustainability)
 14. Accessibility (Inclusivity)
+15. Test Improvements (Quality of life improvement)
 
 ## Notes
 - Each improvement should be tested thoroughly before moving to the next

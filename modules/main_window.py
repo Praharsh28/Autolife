@@ -19,7 +19,7 @@ from .file_list_widget import FileListWidget
 from .workers.subtitle_worker import SubtitleWorker
 from .workers.srt_to_ass_worker import SrtToAssWorker
 from .utilities import setup_logger
-from .constants import WINDOW_TITLE, WINDOW_GEOMETRY, DARK_THEME
+from .constants import WINDOW_TITLE, WINDOW_GEOMETRY, DARK_THEME, TEST_FILES_DIR
 
 class MainWindow(QMainWindow):
     """
@@ -48,6 +48,9 @@ class MainWindow(QMainWindow):
             # Apply theme and connect signals
             self.apply_dark_theme()
             self.setup_connections()
+            
+            # Load test files if they exist
+            self.load_test_files()
             
             self.logger.info("MainWindow initialization completed successfully")
             
@@ -456,35 +459,110 @@ class MainWindow(QMainWindow):
 
     def handle_error(self, error_message):
         """Handle errors during processing."""
-        QMessageBox.critical(self, "Error", error_message)
-        self.logger.error(error_message)
+        try:
+            # Format error message for display
+            formatted_error = f"Error: {error_message}"
+            if isinstance(error_message, dict):
+                if 'error' in error_message:
+                    formatted_error = f"Error: {error_message['error']}"
+                if 'file' in error_message:
+                    formatted_error = f"Error processing {error_message['file']}: {error_message['error']}"
+            
+            # Log error with full context
+            self.logger.error(formatted_error, exc_info=True)
+            
+            # Show error dialog
+            QMessageBox.critical(self, "Processing Error", formatted_error)
+            
+            # Update status display
+            self.status_display.append(formatted_error)
+            
+            # Re-enable buttons
+            self.set_buttons_enabled(True)
+            
+            # Reset progress
+            self.progress_bar.setValue(0)
+            
+        except Exception as e:
+            self.logger.error(f"Error in error handler: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "Critical Error", 
+                               f"Error handling failed: {str(e)}")
 
     def process_completed(self):
         """Handle completion of processing."""
-        self.logger.info("Processing completed")
-        self.status_display.append("Processing completed")
-        self.set_buttons_enabled(True)
+        try:
+            self.logger.info("Processing completed successfully")
+            
+            # Update UI
+            self.status_display.append("Processing completed successfully")
+            self.progress_bar.setValue(100)
+            
+            # Re-enable buttons
+            self.set_buttons_enabled(True)
+            
+            # Reset progress tracking
+            self.file_progress.clear()
+            
+            # Handle file cleanup if requested
+            if self.delete_original_checkbox.isChecked():
+                self.delete_original_files()
+                
+        except Exception as e:
+            self.logger.error(f"Error in completion handler: {str(e)}", exc_info=True)
+            self.handle_error(str(e))
 
     def update_progress(self, value):
         """Update the progress bar."""
-        self.progress_bar.setValue(value)
+        try:
+            # Ensure value is within valid range
+            value = max(0, min(100, value))
+            
+            # Update progress bar
+            self.progress_bar.setValue(int(value))
+            
+            # Update status for significant progress points
+            if value in [25, 50, 75, 100]:
+                self.status_display.append(f"Progress: {value}%")
+                
+        except Exception as e:
+            self.logger.error(f"Error updating progress: {str(e)}", exc_info=True)
 
     def update_file_progress(self, filename, progress):
         """Update progress for a specific file."""
-        self.file_progress[filename] = progress
-        total_progress = sum(self.file_progress.values()) / len(self.file_progress)
-        self.progress_bar.setValue(int(total_progress))
+        try:
+            # Update progress for specific file
+            self.file_progress[filename] = max(0, min(100, progress))
+            
+            # Calculate and update total progress
+            if self.file_progress:
+                total_progress = sum(self.file_progress.values()) / len(self.file_progress)
+                self.progress_bar.setValue(int(total_progress))
+                
+                # Log progress for debugging
+                self.logger.debug(f"File progress - {filename}: {progress}%, Total: {total_progress}%")
+            
+        except Exception as e:
+            self.logger.error(f"Error updating file progress: {str(e)}", exc_info=True)
 
     def add_files(self):
         """Open file dialog to add files."""
-        files, _ = QFileDialog.getOpenFileNames(
-            self,
-            "Add Files",
-            "",
-            "All Supported Files (*.mp4 *.mxf *.srt *.ass);;Video Files (*.mp4 *.mxf);;Subtitle Files (*.srt *.ass);;All Files (*.*)"
-        )
-        for file in files:
-            self.file_list.addItem(file)
+        try:
+            # Default to test_files directory if it exists
+            default_dir = TEST_FILES_DIR if os.path.exists(TEST_FILES_DIR) else os.path.expanduser("~")
+
+            files, _ = QFileDialog.getOpenFileNames(
+                self,
+                "Add Files",
+                default_dir,
+                "All Supported Files (*.mp4 *.mxf *.srt *.ass);;Video Files (*.mp4 *.mxf);;Subtitle Files (*.srt *.ass);;All Files (*.*)"
+            )
+            for file in files:
+                self.file_list.addItem(file)
+
+        except Exception as e:
+            error_msg = f"Error opening files: {str(e)}"
+            self.logger.error(error_msg)
+            QMessageBox.critical(self, "Error", error_msg)
 
     def remove_selected_files(self):
         """Remove selected files from the list."""
@@ -547,6 +625,25 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 self.logger.error(f"Error deleting {file}: {str(e)}")
                 continue
+
+    def load_test_files(self):
+        """Load files from test directory if they exist."""
+        try:
+            if os.path.exists(TEST_FILES_DIR):
+                test_files = []
+                for file in os.listdir(TEST_FILES_DIR):
+                    file_path = os.path.join(TEST_FILES_DIR, file)
+                    if os.path.isfile(file_path):
+                        ext = os.path.splitext(file)[1].lower()
+                        if ext in self.file_list.VIDEO_FORMATS or ext in self.file_list.AUDIO_FORMATS:
+                            test_files.append(file_path)
+                
+                if test_files:
+                    self.file_list.add_files(test_files)
+                    self.log_message(f"Loaded {len(test_files)} test file(s)")
+                    self.logger.info(f"Loaded {len(test_files)} test files from {TEST_FILES_DIR}")
+        except Exception as e:
+            self.logger.error(f"Error loading test files: {str(e)}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

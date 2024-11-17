@@ -14,52 +14,188 @@ RESOURCES_DIR = os.path.join(BASE_DIR, 'resources')
 TEMPLATES_DIR = os.path.join(RESOURCES_DIR, 'templates')
 DEFAULT_TEMPLATE_PATH = os.path.join(TEMPLATES_DIR, 'default_template.ass')
 
+# Application directories
+APP_DIR = os.path.dirname(os.path.dirname(__file__))
+RESOURCES_DIR = os.path.join(APP_DIR, 'resources')
+TEMPLATES_DIR = os.path.join(RESOURCES_DIR, 'templates')
+LOGS_DIR = os.path.join(RESOURCES_DIR, 'logs')
+TEST_FILES_DIR = os.path.join(APP_DIR, 'test_files')
+
 # API Configuration
-API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3"
+API_BASE_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3"
 API_TOKEN = os.getenv('HUGGINGFACE_API_TOKEN')
 if not API_TOKEN:
     raise ValueError("HUGGINGFACE_API_TOKEN not found. Please set it in your .env file")
 
 # Network Configuration
-MAX_RETRIES = 5
-BASE_RETRY_DELAY = 1.0  # Initial retry delay in seconds
+MAX_RETRIES = 3
+RETRY_DELAY = 1.0  # Initial retry delay in seconds
 MAX_RETRY_DELAY = 32.0  # Maximum retry delay in seconds
 JITTER_RANGE = 0.1  # ±10% jitter
 REQUEST_TIMEOUT = 30  # Request timeout in seconds
 RETRY_STATUS_CODES = {408, 429, 500, 502, 503, 504}  # HTTP status codes that trigger retry
 
-# API Request Limits
-MAX_CHUNK_SIZE = 25 * 1024 * 1024  # 25MB in bytes
-MAX_CHUNK_DURATION = 300  # 5 minutes in seconds
+# File Size Limits
+MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024  # 2GB maximum file size
 
-# Streaming Configuration
-CHUNK_SIZE = 1024 * 1024  # 1MB default chunk size
-MAX_CHUNK_DURATION = 300  # Maximum chunk duration in seconds (5 minutes)
-MIN_CHUNK_SIZE = 512 * 1024  # Minimum chunk size (512KB)
-CHUNK_OVERLAP = 1.0  # Overlap between chunks in seconds
-MAX_CHUNKS_IN_MEMORY = 10  # Maximum number of chunks to keep in memory
-STREAM_BUFFER_SIZE = 8192  # Stream buffer size in bytes (8KB)
-MAX_PARALLEL_CHUNKS = 4  # Maximum number of chunks to process in parallel
+# Subtitle Formatting
+MAX_LINE_LENGTH = 42  # Maximum characters per line
+MIN_LINE_LENGTH = 20  # Minimum characters per line
+MAX_SUBTITLE_DURATION = 7.0  # Maximum duration for a subtitle in seconds
+MIN_SUBTITLE_DURATION = 1.0  # Minimum duration for a subtitle in seconds
+CHARS_PER_SECOND = 20  # Average reading speed (characters per second)
 
-# Subtitle Configuration
-MAX_CHARS_PER_LINE = 42     # Standard for comfortable reading 
-MIN_CHARS_PER_LINE = 20     # Reduced to allow more natural breaks
-MIN_DURATION = 1.0          # Increased minimum duration for better readability
-MAX_DURATION = 7.0          # Reduced maximum duration for better engagement
-CHARS_PER_SECOND = 20       # Reduced for more comfortable reading speed
-MIN_WORDS_PER_LINE = 3      # Reduced to allow more natural breaks
-MAX_LINES_PER_SUBTITLE = 2  # Maximum lines per subtitle block
-MIN_LINE_DURATION = 1.0     # Minimum duration for a single line
-PUNCTUATION_PAUSE = {
-    '.': 0.6,
-    '!': 0.6,
-    '?': 0.6,
-    ',': 0.3,
-    ';': 0.4,
-    ':': 0.4
-}   # Additional pause after punctuation
-SENTENCE_END_CHARS = {'.', '!', '?'}   # Characters that end a sentence
-CLAUSE_END_CHARS = {',', ';', ':'}     # Characters that end a clause
+# UI Theme
+DARK_THEME = {
+    # Base Colors
+    'background': '#1E1E1E',           # Dark gray background
+    'text': '#E8E8E8',                 # Light gray text
+    
+    # Button Colors
+    'button': '#2D2D2D',               # Slightly lighter gray for buttons
+    'button_text': '#FFFFFF',          # White text for buttons
+    'button_hover': '#3D3D3D',         # Even lighter gray for button hover
+    'button_pressed': '#4D4D4D',       # Lightest gray for button press
+    
+    # List Colors
+    'list_background': '#252526',      # Dark gray for list backgrounds
+    'list_alternate': '#2D2D2D',       # Slightly lighter for alternating items
+    
+    # Progress Colors
+    'progress': '#007ACC',             # Blue for progress bars
+    'progress_bar': '#007ACC',         # Blue for progress bar
+    'progress_background': '#252526',  # Dark background for progress bar
+    
+    # Group Box Colors
+    'group_box': '#252526',           # Background for group boxes
+    'group_box_border': '#3D3D3D',    # Border for group boxes
+    'group_box_title': '#E8E8E8',     # Title text for group boxes
+    
+    # Status Colors
+    'status_background': '#252526',    # Background for status text
+    'status_text': '#E8E8E8',         # Color for status text
+    
+    # Highlight Colors
+    'highlight': '#007ACC',            # Blue for highlighted/selected items
+    'highlight_text': '#FFFFFF',       # White text for highlighted items
+    
+    # Border Colors
+    'border': '#3D3D3D',              # Border color for UI elements
+    
+    # State Colors
+    'error': '#FF6B6B',               # Red for errors
+    'success': '#4CAF50',             # Green for success
+    'warning': '#FFA726',             # Orange for warnings
+    'info': '#29B6F6',                # Light blue for info
+}
+
+# UI Styles
+BUTTON_STYLE = """
+    QPushButton {
+        background-color: %(button)s;
+        color: %(button_text)s;
+        border: 2px solid %(border)s;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    QPushButton:hover {
+        background-color: %(button_hover)s;
+    }
+    QPushButton:pressed {
+        background-color: %(button_pressed)s;
+    }
+    QPushButton:disabled {
+        background-color: #1A1A1A;
+        color: #666666;
+    }
+""" % DARK_THEME
+
+PROGRESS_BAR_STYLE = """
+    QProgressBar {
+        border: 2px solid %(button)s;
+        border-radius: 5px;
+        text-align: center;
+        color: %(text)s;
+        background-color: %(progress_background)s;
+    }
+    QProgressBar::chunk {
+        background-color: %(progress_bar)s;
+        width: 10px;
+        margin: 0.5px;
+    }
+""" % DARK_THEME
+
+LIST_WIDGET_STYLE = """
+    QListWidget {
+        background-color: %(list_background)s;
+        color: %(text)s;
+        border: 2px solid %(border)s;
+        border-radius: 5px;
+        padding: 5px;
+    }
+    QListWidget::item {
+        padding: 5px;
+        border-radius: 3px;
+    }
+    QListWidget::item:selected {
+        background-color: %(highlight)s;
+        color: %(highlight_text)s;
+    }
+    QListWidget::item:hover {
+        background-color: %(button)s;
+    }
+    QListWidget::item:alternate {
+        background-color: %(list_alternate)s;
+    }
+""" % DARK_THEME
+
+LABEL_STYLE = """
+    QLabel {
+        color: %(text)s;
+        font-size: 14px;
+    }
+""" % DARK_THEME
+
+ERROR_LABEL_STYLE = """
+    QLabel {
+        color: %(error)s;
+        font-size: 14px;
+        font-weight: bold;
+    }
+""" % DARK_THEME
+
+SUCCESS_LABEL_STYLE = """
+    QLabel {
+        color: %(success)s;
+        font-size: 14px;
+        font-weight: bold;
+    }
+""" % DARK_THEME
+
+GROUP_BOX_STYLE = """
+    QGroupBox {
+        background-color: %(group_box)s;
+        border: 2px solid %(group_box_border)s;
+        border-radius: 5px;
+        padding: 5px;
+    }
+    QGroupBox::title {
+        color: %(text)s;
+        font-size: 14px;
+    }
+""" % DARK_THEME
+
+# Window Configuration
+WINDOW_WIDTH = 800
+WINDOW_HEIGHT = 600
+WINDOW_TITLE = "Autolife Subtitle Generator"
+WINDOW_GEOMETRY = (100, 100, WINDOW_WIDTH, WINDOW_HEIGHT)  # (x, y, width, height)
+
+# Thread pool settings
+MIN_WORKERS = 2
+MAX_WORKERS = 8
+WORKER_TIMEOUT = 300  # 5 minutes worker timeout
 
 # Resource Management
 MAX_MEMORY_PERCENT = 80.0  # Maximum memory usage as percentage of system memory
@@ -97,56 +233,12 @@ FFMPEG_COMMAND_TEMPLATES = {
     'ogg': '-codec:a libvorbis -qscale:a 6'      # High quality Vorbis
 }
 
-# Window Configuration
-WINDOW_TITLE = "AutoLife Media Processor"
-WINDOW_GEOMETRY = (100, 100, 1200, 800)  # x, y, width, height
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 600
-BUTTON_WIDTH = 120
-BUTTON_HEIGHT = 30
-SPACING = 10
-MARGIN = 20
-
-# UI Theme Colors - Modern Dark Theme
-DARK_THEME = {
-    'background': '#1E1E1E',           # Dark gray background
-    'text': '#E8E8E8',                 # Light gray text
-    'button': '#2D2D2D',               # Slightly lighter gray for buttons
-    'button_text': '#FFFFFF',          # White text for buttons
-    'button_hover': '#3D3D3D',         # Lighter gray for button hover
-    'highlight': '#0078D4',            # Blue highlight color
-    'highlight_text': '#FFFFFF',       # White text for highlighted items
-    'error': '#FF3333',                # Red for errors
-    'success': '#33CC33',              # Green for success
-    'warning': '#FFCC00',              # Yellow for warnings
-    'progress_bar': '#0078D4',         # Blue for progress bar
-    'group_box': '#252526',            # Slightly different background for group boxes
-    'group_box_title': '#E8E8E8',      # Light gray for group box titles
-    'list_background': '#252526',      # Background for file list
-    'list_alternate': '#2D2D2D',       # Alternate row color
-    'list_selected': '#094771',        # Selected item background
-    'status_background': '#252526',    # Background for status display
-    'status_text': '#E8E8E8',          # Text color for status display
-    'border': '#3D3D3D'                # Border color for widgets
-}
-
-# File Extensions
-AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.flac', '.aac', '.ogg', '.wma'}
-SUBTITLE_EXTENSIONS = {'.srt', '.vtt', '.sub', '.ass'}
-
-# Progress Updates
-PROGRESS_UPDATE_INTERVAL = 100  # Milliseconds between progress updates
-
 # Language Configuration
 SUPPORTED_LANGUAGES = {
     "English", "Spanish", "French", "German", "Italian", "Portuguese",
     "Russian", "Japanese", "Korean", "Chinese", "Arabic", "Hindi"
 }
 DEFAULT_LANGUAGE = "English"
-
-# Subtitle Duration Limits
-MIN_LINE_DURATION = 1.0  # Minimum duration for a subtitle line in seconds
-MAX_LINE_DURATION = 7.0  # Maximum duration for a subtitle line in seconds
 
 # Language Codes
 LANGUAGE_CODES = {
@@ -245,11 +337,13 @@ SUBTITLE_RULES = {
     }
 }
 
-# File size limits
-MAX_FILE_SIZE = 1024 * 1024 * 1024  # 1GB
-MIN_DURATION = 0.1  # seconds
-MAX_DURATION = 7200  # 2 hours
-
 # Media formats
 SUPPORTED_VIDEO_FORMATS = ['mp4', 'mkv', 'avi', 'mov', 'wmv']
 SUPPORTED_AUDIO_FORMATS = ['mp3', 'wav', 'aac', 'm4a', 'flac']
+
+# File Extensions
+AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.flac', '.aac', '.ogg', '.wma'}
+SUBTITLE_EXTENSIONS = {'.srt', '.vtt', '.sub', '.ass'}
+
+# Progress Updates
+PROGRESS_UPDATE_INTERVAL = 100  # Milliseconds between progress updates

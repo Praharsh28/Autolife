@@ -14,7 +14,7 @@ from requests.exceptions import (
 )
 from .utilities import setup_logger
 from .constants import (
-    MAX_RETRIES, BASE_RETRY_DELAY, MAX_RETRY_DELAY,
+    MAX_RETRIES, RETRY_DELAY, MAX_RETRY_DELAY,
     JITTER_RANGE, RETRY_STATUS_CODES, REQUEST_TIMEOUT
 )
 
@@ -53,7 +53,7 @@ def is_retryable_error(error: Exception) -> bool:
             
     return False
 
-def calculate_retry_delay(attempt: int, base_delay: float = BASE_RETRY_DELAY) -> float:
+def calculate_retry_delay(attempt: int, base_delay: float = RETRY_DELAY) -> float:
     """
     Calculate the delay before the next retry attempt with exponential backoff and jitter.
     
@@ -78,11 +78,20 @@ class APISession:
     Manages API requests with automatic retries and connection pooling.
     """
     
-    def __init__(self):
-        """Initialize the API session with a connection pool."""
+    def __init__(self, api_url: str = None, api_token: str = None):
+        """Initialize the API session with a connection pool.
+        
+        Args:
+            api_url: Base URL for API requests
+            api_token: Authentication token for API requests
+        """
         self.session = requests.Session()
         self.logger = setup_logger('APISession')
-        
+        self.api_url = api_url
+        self.api_token = api_token
+        if api_token:
+            self.session.headers.update({'Authorization': f'Bearer {api_token}'})
+            
     def __enter__(self):
         """Context manager entry."""
         return self
@@ -97,7 +106,7 @@ class APISession:
         url: str,
         retry_count: int = MAX_RETRIES,
         **kwargs
-    ) -> requests.Response:
+    ):
         """
         Make an HTTP request with automatic retries.
         
@@ -114,54 +123,75 @@ class APISession:
             NonRetryableError: For errors that shouldn't be retried
             Exception: For other errors after all retries are exhausted
         """
-        # Ensure timeout is set
-        kwargs.setdefault('timeout', REQUEST_TIMEOUT)
-        
         attempt = 0
         last_error = None
         
         while attempt <= retry_count:
             try:
-                self.logger.debug(
-                    f"Attempt {attempt + 1}/{retry_count + 1} for {method} {url}"
+                response = self.session.request(
+                    method=method,
+                    url=url,
+                    **kwargs
                 )
-                
-                response = self.session.request(method, url, **kwargs)
-                
-                # Check for error status codes
-                if response.status_code >= 400:
-                    error_msg = f"HTTP {response.status_code}: {response.text}"
-                    
-                    if response.status_code in RETRY_STATUS_CODES:
-                        raise RetryableError(error_msg)
-                    else:
-                        raise NonRetryableError(error_msg)
-                        
+                response.raise_for_status()
                 return response
                 
             except Exception as e:
                 last_error = e
-                
-                if not is_retryable_error(e) or attempt >= retry_count:
-                    if isinstance(e, (RetryableError, NonRetryableError)):
-                        raise
-                    raise NonRetryableError(str(e))
+                if not is_retryable_error(e) or attempt == retry_count:
+                    if isinstance(e, requests.exceptions.RequestException):
+                        raise NonRetryableError(str(e))
+                    raise
                     
                 delay = calculate_retry_delay(attempt)
                 self.logger.warning(
-                    f"Request failed (attempt {attempt + 1}/{retry_count + 1}): {str(e)}"
-                    f"\nRetrying in {delay:.2f} seconds..."
+                    f"Request failed (attempt {attempt + 1}/{retry_count + 1}). "
+                    f"Retrying in {delay:.2f}s: {str(e)}"
                 )
-                
                 time.sleep(delay)
                 attempt += 1
                 
-        # If we get here, we've exhausted all retries
-        raise NonRetryableError(f"All retry attempts failed: {str(last_error)}")
+        raise last_error
+        
+    def post(self, url: str, **kwargs):
+        """
+        Make a POST request.
+        
+        Args:
+            url: Target URL
+            **kwargs: Additional arguments for requests
+            
+        Returns:
+            Response object from the request
+        """
+        # Set the correct content type for multipart form data
+        headers = kwargs.get('headers', {})
+        if 'files' in kwargs:
+            headers['Accept'] = 'application/json'
+        kwargs['headers'] = headers
+        
+        if self.api_url and not url.startswith(('http://', 'https://')):
+            url = f"{self.api_url.rstrip('/')}/{url.lstrip('/')}"
+        return self.request('POST', url, **kwargs)
+        
+    def get(self, url: str, **kwargs):
+        """
+        Make a GET request.
+        
+        Args:
+            url: Target URL
+            **kwargs: Additional arguments for requests
+            
+        Returns:
+            Response object from the request
+        """
+        if self.api_url and not url.startswith(('http://', 'https://')):
+            url = f"{self.api_url.rstrip('/')}/{url.lstrip('/')}"
+        return self.request('GET', url, **kwargs)
 
 def with_retry(
     retry_count: int = MAX_RETRIES,
-    base_delay: float = BASE_RETRY_DELAY
+    base_delay: float = RETRY_DELAY
 ) -> Callable:
     """
     Decorator for adding retry behavior to functions.

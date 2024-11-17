@@ -13,3 +13,4 @@ class WorkerSignals(QObject):
     progress = pyqtSignal(int)
     log = pyqtSignal(str)
     file_completed = pyqtSignal(str, int)  # Emits filename and progress value
+    status = pyqtSignal(str)  # Emits status messages

@@ -5,18 +5,22 @@ Utility functions used throughout the media processing application.
 import os
 import logging
 from datetime import datetime
+from .constants import (
+    RESOURCES_DIR, TEMPLATES_DIR,
+    TEST_FILES_DIR, LOGS_DIR
+)
 
 def ensure_app_directories():
-    """Create necessary application directories if they don't exist."""
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    """Ensure all required application directories exist."""
     directories = [
-        os.path.join(base_dir, 'resources'),
-        os.path.join(base_dir, 'resources', 'logs'),
-        os.path.join(base_dir, 'resources', 'templates')
+        RESOURCES_DIR,
+        TEMPLATES_DIR,
+        TEST_FILES_DIR,
+        LOGS_DIR
     ]
+    
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
-    return base_dir
 
 def setup_logger(name, log_dir=None):
     """
@@ -31,8 +35,8 @@ def setup_logger(name, log_dir=None):
     """
     # Get the absolute path to the resources/logs directory
     if log_dir is None:
-        base_dir = ensure_app_directories()
-        log_dir = os.path.join(base_dir, 'resources', 'logs')
+        ensure_app_directories()
+        log_dir = LOGS_DIR
     
     # Create logger
     logger = logging.getLogger(name)

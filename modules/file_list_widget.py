@@ -156,6 +156,19 @@ class FileListWidget(QListWidget):
         if not self._is_duplicate(filepath):
             self.addItem(filepath)
             
+    def add_files(self, files):
+        """
+        Add multiple files to the list.
+        
+        Args:
+            files: List of file paths to add
+        """
+        for file in files:
+            if os.path.isfile(file):
+                ext = os.path.splitext(file)[1].lower()
+                if ext in self.VIDEO_FORMATS or ext in self.AUDIO_FORMATS:
+                    self.addItem(file)
+                    
     def remove_file(self, filepath):
         """
         Remove a specific file from the list.

@@ -6,7 +6,7 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 from modules.constants import (
-    API_URL, API_TOKEN, MAX_RETRIES, BASE_RETRY_DELAY,
+    API_URL, API_TOKEN, MAX_RETRIES, RETRY_DELAY,
     MAX_RETRY_DELAY, REQUEST_TIMEOUT, RETRY_STATUS_CODES
 )
 
@@ -29,11 +29,11 @@ def test_network_configurations():
     assert isinstance(MAX_RETRIES, int), "MAX_RETRIES should be an integer"
     assert MAX_RETRIES > 0, "MAX_RETRIES should be positive"
     
-    assert isinstance(BASE_RETRY_DELAY, float), "BASE_RETRY_DELAY should be a float"
-    assert BASE_RETRY_DELAY > 0, "BASE_RETRY_DELAY should be positive"
+    assert isinstance(RETRY_DELAY, float), "RETRY_DELAY should be a float"
+    assert RETRY_DELAY > 0, "RETRY_DELAY should be positive"
     
     assert isinstance(MAX_RETRY_DELAY, float), "MAX_RETRY_DELAY should be a float"
-    assert MAX_RETRY_DELAY > BASE_RETRY_DELAY, "MAX_RETRY_DELAY should be greater than BASE_RETRY_DELAY"
+    assert MAX_RETRY_DELAY > RETRY_DELAY, "MAX_RETRY_DELAY should be greater than RETRY_DELAY"
     
     assert isinstance(REQUEST_TIMEOUT, int), "REQUEST_TIMEOUT should be an integer"
     assert REQUEST_TIMEOUT > 0, "REQUEST_TIMEOUT should be positive"

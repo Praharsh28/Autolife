@@ -144,9 +144,14 @@ class FFmpegProcess:
             FFmpegTimeoutError: If process times out
         """
         try:
-            # Check disk space
+            # Create output directory if it doesn't exist
+            output_dir = os.path.dirname(output_file)
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            # Check disk space before running
             space_needed = estimate_space_needed(self.input_file)
-            if not check_disk_space(os.path.dirname(output_file), space_needed):
+            if not check_disk_space(output_dir or '.', space_needed):
                 raise FFmpegProcessError(
                     f"Insufficient disk space. Need {space_needed/1024/1024:.1f}MB"
                 )
@@ -187,6 +192,16 @@ class FFmpegProcess:
                         stderr=stderr
                     )
                     
+                # Verify file was created
+                if not os.path.exists(output_file):
+                    raise FFmpegProcessError(f"Output file was not created: {output_file}")
+                    
+                if os.path.getsize(output_file) == 0:
+                    raise FFmpegProcessError(f"Output file is empty: {output_file}")
+                    
+                # Add small delay to ensure file is fully written
+                time.sleep(0.1)
+                
                 return True
                 
             except subprocess.TimeoutExpired:
@@ -217,6 +232,80 @@ class FFmpegProcess:
                     self.process.kill()
             except Exception as e:
                 self.logger.error(f"Error stopping FFmpeg process: {str(e)}")
+                
+    def extract_audio_chunk(
+        self,
+        output_file: str,
+        start_time: float,
+        duration: float,
+        progress_callback=None
+    ) -> bool:
+        """
+        Extract a chunk of audio from file.
+        
+        Args:
+            output_file: Path to output file
+            start_time: Start time in seconds
+            duration: Duration in seconds
+            progress_callback: Optional callback for progress updates
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            options = [
+                '-ss', str(start_time),
+                '-t', str(duration),
+                '-vn',  # Disable video
+                '-acodec', 'pcm_s16le',
+                '-ar', '16000',
+                '-ac', '1',
+                '-y'  # Overwrite output file
+            ]
+            
+            return self.run(output_file, options, progress_callback=progress_callback)
+            
+        except Exception as e:
+            self.logger.error(f"Error extracting audio chunk: {str(e)}")
+            return False
+
+    def extract_audio(self, output_file: str, progress_callback=None) -> bool:
+        """
+        Extract audio from video file.
+        
+        Args:
+            output_file: Path to output WAV file
+            progress_callback: Optional callback for progress updates
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Ensure output directory exists
+            os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
+            
+            # Check disk space
+            space_needed = estimate_space_needed(self.input_file)
+            if not check_disk_space(os.path.dirname(output_file), space_needed):
+                raise FFmpegError(f"Insufficient disk space. Need at least {space_needed/1024/1024:.2f} MB")
+            
+            # Setup FFmpeg options for audio extraction
+            options = [
+                "-y",                   # Overwrite output file
+                "-i", self.input_file,  # Input file
+                "-vn",                  # Disable video
+                "-acodec", "pcm_s16le", # Audio codec (16-bit PCM)
+                "-ar", "44100",         # Sample rate (44.1 kHz)
+                "-ac", "2",             # Stereo audio
+                output_file             # Output file
+            ]
+            
+            # Run FFmpeg
+            return self.run(output_file, options, progress_callback=progress_callback)
+            
+        except Exception as e:
+            self.logger.error(f"Error extracting audio: {str(e)}")
+            raise FFmpegError(f"Error extracting audio: {str(e)}")
 
 def convert_audio(
     input_file: str,
@@ -271,16 +360,8 @@ def extract_audio_chunk(
         bool: True if successful, False otherwise
     """
     try:
-        options = [
-            '-ss', str(start_time),
-            '-t', str(duration),
-            '-acodec', 'pcm_s16le',
-            '-ar', '16000',
-            '-ac', '1'
-        ]
-        
         ffmpeg = FFmpegProcess(input_file)
-        return ffmpeg.run(output_file, options, progress_callback=progress_callback)
+        return ffmpeg.extract_audio_chunk(output_file, start_time, duration, progress_callback=progress_callback)
         
     except Exception as e:
         logger.error(f"Error extracting audio chunk: {str(e)}")

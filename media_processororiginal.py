@@ -68,7 +68,7 @@ class SubtitleWorker(QThread):
         self.batch_size = batch_size
         self.signals = WorkerSignals()
         self.API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
-        self.API_TOKEN = "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"
+        self.API_TOKEN = "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"
         
         # Constants for subtitle formatting
         self.MAX_CHARS_PER_LINE = 37  # Netflix standard
