@@ -90,8 +90,6 @@ class SidebarMenu(QWidget):
         # Add categories
         self.add_frequently_used()
         self.add_subtitle_tools()
-        self.add_conversion_tools()
-        self.add_additional_tools()
         
         # Add scroll area to main layout
         layout.addWidget(scroll)
@@ -101,52 +99,31 @@ class SidebarMenu(QWidget):
         category = MenuCategory(title)
         self.categories_layout.addWidget(category)
         return category
-        
-    def add_tool_button(self, category, text, description=""):
-        """Add a tool button to a category."""
+
+    def add_frequently_used(self):
+        """Add frequently used tools category."""
+        category = self.add_category("FREQUENTLY USED")
+        self.add_button(category, "Generate Subtitles", 
+                       "Generate subtitles for video files using AI")
+        self.add_button(category, "Convert SRT to ASS", 
+                       "Convert SRT subtitle files to ASS format")
+        self.add_button(category, "Overlay Subtitles", 
+                       "Burn subtitles into video files")
+
+    def add_subtitle_tools(self):
+        """Add subtitle tools category."""
+        category = self.add_category("SUBTITLE TOOLS")
+        self.add_button(category, "Generate Subtitles", 
+                       "Generate subtitles for video files using AI")
+        self.add_button(category, "Convert SRT to ASS", 
+                       "Convert SRT subtitle files to ASS format")
+        self.add_button(category, "Overlay Subtitles", 
+                       "Burn subtitles into video files")
+        self.add_button(category, "Manage Templates", 
+                       "Manage ASS subtitle templates")
+
+    def add_button(self, category, text, description=""):
+        """Add a button to a category."""
         button = MenuButton(text, description)
         button.clicked.connect(lambda: self.tool_selected.emit(text))
         category.layout.addWidget(button)
-        return button
-        
-    def add_frequently_used(self):
-        """Add frequently used tools category."""
-        category = self.add_category("📌 Frequently Used")
-        self.add_tool_button(category, "Generate Subtitles", 
-                           "Generate subtitles from video/audio files")
-        self.add_tool_button(category, "Convert SRT to ASS", 
-                           "Convert SRT subtitle files to ASS format")
-        self.add_tool_button(category, "Extract Audio", 
-                           "Extract audio from video files")
-        
-    def add_subtitle_tools(self):
-        """Add subtitle tools category."""
-        category = self.add_category("🗣️ Subtitle Tools")
-        self.add_tool_button(category, "Edit Subtitles", 
-                           "Edit and modify subtitle files")
-        self.add_tool_button(category, "Merge Subtitles", 
-                           "Merge multiple subtitle files")
-        self.add_tool_button(category, "Split Subtitles", 
-                           "Split subtitle files")
-        self.add_tool_button(category, "Sync Subtitles", 
-                           "Synchronize subtitles with video")
-        
-    def add_conversion_tools(self):
-        """Add format conversion tools category."""
-        category = self.add_category("🔄 Format Conversion")
-        self.add_tool_button(category, "Video Converter", 
-                           "Convert between video formats")
-        self.add_tool_button(category, "Audio Converter", 
-                           "Convert between audio formats")
-        self.add_tool_button(category, "Subtitle Converter", 
-                           "Convert between subtitle formats")
-        
-    def add_additional_tools(self):
-        """Add additional tools category."""
-        category = self.add_category("🛠️ Additional Tools")
-        self.add_tool_button(category, "MXF ↔ MPF", 
-                           "Convert between MXF and MPF formats")
-        self.add_tool_button(category, "Batch Processing", 
-                           "Process multiple files in batch")
-        self.add_tool_button(category, "Custom Templates", 
-                           "Manage custom templates")
