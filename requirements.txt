@@ -1,15 +1,10 @@
 # Core dependencies
-PyQt5==5.15.9
-requests==2.31.0
-torch>=2.0.0
-python-dotenv==1.0.0
-numpy==1.25.2
-ffmpeg-python==0.2.0
-colorlog==6.7.0
-transformers>=4.30.0
-sentence-transformers>=2.2.2
-pillow==10.2.0
-aiohttp==3.9.1
+PyQt5>=5.15.9
+requests>=2.31.0
+python-dotenv>=1.0.0
+ffmpeg-python>=0.2.0
+colorlog>=6.7.0
+moviepy>=1.0.3
 
 # Testing dependencies
 pytest==7.4.4

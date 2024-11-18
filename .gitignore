@@ -45,3 +45,21 @@ logs/
 temp/
 *.log
 .qt_for_python/
+test_files/
+resources/logs/
+
+# Media files
+*.mp4
+*.avi
+*.mkv
+*.mov
+*.mxf
+*.mpg
+*.mpeg
+*.wmv
+*.mp3
+*.wav
+*.aac
+*.m4a
+*.flac
+*.ogg
