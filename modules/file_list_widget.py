@@ -44,32 +44,52 @@ class FileListWidget(QListWidget):
                         # Check if file extension is supported
                         ext = os.path.splitext(file)[1].lower()
                         if ext in self.VIDEO_FORMATS or ext in self.AUDIO_FORMATS or ext in self.SUBTITLE_FORMATS:
-                            self.addItem(file)
+                            # Add file with just the filename for display
+                            display_name = os.path.basename(file)
+                            item = self.addItem(display_name)
+                            # Store full path as item data
+                            self.item(self.count() - 1).setData(Qt.UserRole, file)
                             added_count += 1
                             self.logger.debug(f"Added file to list: {file}")
                         else:
                             self.logger.warning(f"Unsupported file format: {file}")
-                    else:
-                        self.logger.debug(f"File already in list: {file}")
                 else:
-                    self.logger.warning(f"File not found: {file}")
+                    self.logger.warning(f"File does not exist: {file}")
             
             if added_count > 0:
-                self.logger.info(f"Successfully added {added_count} file(s) to the list")
-                    
+                self.logger.info(f"Successfully added {added_count} files")
+            
         except Exception as e:
             self.logger.error(f"Failed to add files: {str(e)}")
-            QMessageBox.critical(None, "Error", f"Failed to add files: {str(e)}")
-    
+            QMessageBox.warning(self, "Error", f"Failed to add files: {str(e)}")
+
     def get_selected_files(self):
         """
-        Get list of selected file paths.
+        Get the full paths of selected files.
         
         Returns:
             list: List of selected file paths
         """
-        return [item.text() for item in self.selectedItems()]
-    
+        try:
+            selected_items = self.selectedItems()
+            return [item.data(Qt.UserRole) for item in selected_items]
+        except Exception as e:
+            self.logger.error(f"Failed to get selected files: {str(e)}")
+            return []
+
+    def get_all_files(self):
+        """
+        Get the full paths of all files in the list.
+        
+        Returns:
+            list: List of all file paths
+        """
+        try:
+            return [self.item(i).data(Qt.UserRole) for i in range(self.count())]
+        except Exception as e:
+            self.logger.error(f"Failed to get all files: {str(e)}")
+            return []
+
     def remove_selected(self):
         """Remove selected files from the list."""
         try:

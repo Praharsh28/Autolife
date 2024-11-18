@@ -87,9 +87,8 @@ class SidebarMenu(QWidget):
         self.categories_layout.setContentsMargins(0, 0, 0, 0)
         scroll.setWidget(container)
         
-        # Add categories
-        self.add_frequently_used()
-        self.add_subtitle_tools()
+        # Add core tools category
+        self.add_core_tools()
         
         # Add scroll area to main layout
         layout.addWidget(scroll)
@@ -100,27 +99,15 @@ class SidebarMenu(QWidget):
         self.categories_layout.addWidget(category)
         return category
 
-    def add_frequently_used(self):
-        """Add frequently used tools category."""
-        category = self.add_category("FREQUENTLY USED")
+    def add_core_tools(self):
+        """Add core tools category."""
+        category = self.add_category("TOOLS")
         self.add_button(category, "Generate Subtitles", 
                        "Generate subtitles for video files using AI")
         self.add_button(category, "Convert SRT to ASS", 
                        "Convert SRT subtitle files to ASS format")
         self.add_button(category, "Overlay Subtitles", 
                        "Burn subtitles into video files")
-
-    def add_subtitle_tools(self):
-        """Add subtitle tools category."""
-        category = self.add_category("SUBTITLE TOOLS")
-        self.add_button(category, "Generate Subtitles", 
-                       "Generate subtitles for video files using AI")
-        self.add_button(category, "Convert SRT to ASS", 
-                       "Convert SRT subtitle files to ASS format")
-        self.add_button(category, "Overlay Subtitles", 
-                       "Burn subtitles into video files")
-        self.add_button(category, "Manage Templates", 
-                       "Manage ASS subtitle templates")
 
     def add_button(self, category, text, description=""):
         """Add a button to a category."""

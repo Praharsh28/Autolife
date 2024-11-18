@@ -13,17 +13,13 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from PyQt5.QtCore import Qt, QSize
-from modules.tools_window import ToolsWindow
 from .file_list_widget import FileListWidget
 from .workers.subtitle_worker import SubtitleWorker
 from .workers.srt_to_ass_worker import SrtToAssWorker
 from .utilities import setup_logger
 from .constants import *
 from .sidebar_menu import SidebarMenu
-from .dialogs import (
-    SubtitleGenerationDialog,
-    TemplateManagementDialog
-)
+from .dialogs.subtitle_dialog import SubtitleGenerationDialog
 
 import logging
 
@@ -110,7 +106,11 @@ class MainWindow(QMainWindow):
             right_panel.setLayout(right_layout)
             
             # Add file list
-            right_layout.addWidget(self.file_list)
+            file_list_group = QGroupBox("Files")
+            file_list_layout = QVBoxLayout()
+            file_list_layout.addWidget(self.file_list)
+            file_list_group.setLayout(file_list_layout)
+            right_layout.addWidget(file_list_group)
             
             # Create button layout
             button_layout = QHBoxLayout()
@@ -127,35 +127,56 @@ class MainWindow(QMainWindow):
             # Add button layout to right panel
             right_layout.addLayout(button_layout)
             
-            # Create processing options group
+            # Add processing options
             options_group = QGroupBox("Processing Options")
             options_layout = QHBoxLayout()
-            options_group.setLayout(options_layout)
-            
-            # Add processing options
+            options_layout.addWidget(self.delete_original_checkbox)
             options_layout.addWidget(QLabel("Batch Size:"))
             options_layout.addWidget(self.batch_size_spinbox)
-            options_layout.addWidget(self.delete_original_checkbox)
-            options_layout.addStretch()
-            
-            # Add options group to right panel
+            options_group.setLayout(options_layout)
             right_layout.addWidget(options_group)
             
-            # Add progress bar and status display
-            right_layout.addWidget(self.progress_bar)
-            right_layout.addWidget(self.status_display)
+            # Add progress bar
+            progress_group = QGroupBox("Progress")
+            progress_layout = QVBoxLayout()
+            progress_layout.addWidget(self.progress_bar)
+            progress_group.setLayout(progress_layout)
+            right_layout.addWidget(progress_group)
+            
+            # Add status display
+            status_group = QGroupBox("Status")
+            status_layout = QVBoxLayout()
+            status_layout.addWidget(self.status_display)
+            status_group.setLayout(status_layout)
+            right_layout.addWidget(status_group)
             
             # Add right panel to main layout
             main_layout.addWidget(right_panel)
             
-            # Connect sidebar signals
+            # Connect signals
             self.sidebar.tool_selected.connect(self.handle_tool_selection)
             
-            self.logger.info("UI initialization completed")
+            # Load test files
+            self.load_test_files()
             
         except Exception as e:
             self.logger.error(f"Failed to initialize UI: {str(e)}")
             raise
+
+    def load_test_files(self):
+        """Load test files into the file list."""
+        try:
+            test_files_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_files')
+            if os.path.exists(test_files_dir):
+                test_files = [os.path.join(test_files_dir, f) for f in os.listdir(test_files_dir)]
+                self.file_list.add_files(test_files)
+                self.log_message(f"Loaded {len(test_files)} test files")
+            else:
+                self.logger.warning(f"Test files directory not found: {test_files_dir}")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to load test files: {str(e)}")
+            self.handle_error(str(e))
 
     def handle_tool_selection(self, tool_name):
         """Handle tool selection from the sidebar menu."""
@@ -166,8 +187,7 @@ class MainWindow(QMainWindow):
             tool_map = {
                 "Generate Subtitles": self.generate_subtitles,
                 "Convert SRT to ASS": self.convert_srt_to_ass,
-                "Overlay Subtitles": self.overlay_subtitles,
-                "Manage Templates": self.manage_templates
+                "Overlay Subtitles": self.overlay_subtitles
             }
             
             # Execute the selected tool
@@ -237,16 +257,6 @@ class MainWindow(QMainWindow):
             
         except Exception as e:
             self.logger.error(f"Failed to overlay subtitles: {str(e)}")
-            self.handle_error(str(e))
-
-    def manage_templates(self):
-        """Show template management dialog."""
-        try:
-            dialog = TemplateManagementDialog(self)
-            dialog.exec_()
-            
-        except Exception as e:
-            self.logger.error(f"Failed to open template manager: {str(e)}")
             self.handle_error(str(e))
 
     def handle_error(self, error_message):
